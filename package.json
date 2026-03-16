@@ -2,7 +2,7 @@
   "name": "haedal-skills",
   "version": "0.1.0",
   "private": true,
-  "description": "Haedal Protocol agent skills — haSUI, haWAL, Farming, VeHaedal",
+  "description": "Haedal Protocol agent skills — haSUI, haWAL, VeHaedal",
   "keywords": [
     "haedal",
     "sui",
@@ -10,7 +10,6 @@
     "agent-skills",
     "hasui",
     "hawal",
-    "farming",
     "vehaedal"
   ],
   "author": "haedal",

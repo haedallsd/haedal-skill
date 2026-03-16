@@ -1,6 +1,6 @@
 # haedal-skills
 
-Haedal Protocol agent skills for **any AI coding agent** — interact with haSUI, haWAL, Farming, VeHaedal.
+Haedal Protocol agent skills for **any AI coding agent** — interact with haSUI, haWAL, VeHaedal.
 
 ## Quick Start
 
@@ -46,9 +46,7 @@ After installation, restart your coding agent. It will automatically detect and 
 
 - "Stake 100 SUI into haSUI"
 - "Redeem 50 haWAL"
-- "Deposit 20 SUI into farming"
-- "Stake haedal locked for 4 weeks"
-- "Claim farming rewards"
+- "Stake haedal locked for 52 weeks"
 
 ## Managing Skills
 
