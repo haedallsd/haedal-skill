@@ -30,11 +30,31 @@ Typical flow: the user says "stake hawal" without specifying a validator → pre
 The **claim** endpoint requires **address** and **NFTObj** (the NFT object ID that holds the rewards). When the user says "claim hawal rewards":
 
 1. **Ask the user** whether they want help finding the object id (if the user already knows the NFTObj, you can send it directly).
-2. **If discovery is needed**: call **get_unstake_tickets_list** with the user `address`. On HTTP 200 the response body is `{"list":[{"objectId":"...","type":"...","version":"..."}, ...]}`. Use the `objectId` from `list` as **NFTObj**.
-3. **If there are multiple entries in the list**: let the user choose which one to claim (or follow a predefined rule such as "take the first entry") and use that entry's `objectId` as NFTObj.
-4. **Then call claim**: `POST /api/v1/hawal/claim` with body `{"address":"0x...","NFTObj":"<objectId from previous step>"}`.
+2. **If discovery is needed**: call **get_unstake_tickets_list** with the user `address`. On HTTP 200 the response body is:
+   ```json
+   {
+     "list": [
+       {
+         "objectId": "0x...",
+         "type": "0x...::walstaking::UnstakeTicket",
+         "version": "...",
+         "fields": {
+           "claim_epoch": 27,
+           "claim_timestamp_ms": "1774364404744",
+           "hawal_amount": "700000000000",
+           "id": { "id": "0x..." },
+           "unstake_timestamp_ms": "1772871784320",
+           "wal_amount": "700635659164"
+         }
+       }
+     ]
+   }
+   ```
+3. **Present the list to the user** in a readable format — show key fields such as `objectId`, `hawal_amount`, `wal_amount`, `claim_epoch`, `claim_timestamp_ms` for each entry.
+4. **If there are multiple entries in the list**: let the user choose which one to claim (or take the first entry if only one exists) and use that entry's `objectId` as NFTObj.
+5. **Then call claim**: `POST /api/v1/hawal/claim` with body `{"address":"0x...","NFTObj":"<objectId from previous step>"}`.
 
-Flow summary: the user says "claim hawal rewards" → ask whether to discover the object id → if yes, call get_unstake_tickets_list(address) → present the list (or let the user select one entry) → take the chosen `objectId` as NFTObj → call claim(address, NFTObj).
+Flow summary: the user says "claim hawal rewards" → ask whether to discover the object id → if yes, call get_unstake_tickets_list(address) → present the list with key details → user selects one → take the chosen `objectId` as NFTObj → call claim(address, NFTObj).
 
 ## Base URL
 
@@ -92,7 +112,7 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/hawal/g
   -d '{"address":"0xYOUR_ADDRESS"}'
 ```
 
-When the response status is 200, the body looks like: `{"list":[{"objectId":"0x...","type":"...","version":"..."}, ...]}`. Use `list[].objectId` as the **NFTObj** for the claim call.
+When the response status is 200, the body contains `{"list":[{"objectId":"...","type":"...","version":"...","fields":{...}}, ...]}`. Present key fields (`objectId`, `hawal_amount`, `wal_amount`, `claim_epoch`, `claim_timestamp_ms`) to the user, then use the selected `list[].objectId` as the **NFTObj** for the claim call.
 
 **claim** (requires NFTObj, which can be obtained from get_unstake_tickets_list → list[].objectId)
 
@@ -105,7 +125,7 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/hawal/c
 ## Response
 
 - **stake / withdraw / withdraw_instant / claim**: on HTTP 200, the body is `{"txBytes":"<base64>"}`; use `jq -r '.txBytes'` to extract it. On non‑200, use `jq -r '.msg'` to return the error reason to the user.
-- **get_unstake_tickets_list**: on HTTP 200, the body is `{"list":[{"objectId","type","version"}, ...]}`; use `jq -r '.list'` to obtain the list, then take each entry's `objectId` as the NFTObj for claim.
+- **get_unstake_tickets_list**: on HTTP 200, the body is `{"list":[{"objectId","type","version","fields":{...}}, ...]}`; use `jq -r '.list'` to obtain the list. Each entry's `fields` contains `hawal_amount`, `wal_amount`, `claim_epoch`, `claim_timestamp_ms`, `unstake_timestamp_ms`. Take the desired entry's `objectId` as the NFTObj for claim.
 
 ## MoveAbort error codes
 
