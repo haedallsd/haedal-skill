@@ -1,0 +1,23 @@
+{
+  "name": "haedal-skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Haedal Protocol agent skills — haSUI, haWAL, Farming, VeHaedal",
+  "keywords": [
+    "haedal",
+    "sui",
+    "defi",
+    "agent-skills",
+    "hasui",
+    "hawal",
+    "farming",
+    "vehaedal"
+  ],
+  "author": "haedal",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haedallsd/haedal-skill.git"
+  },
+  "homepage": "https://github.com/haedallsd/haedal-skill#readme"
+}
