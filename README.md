@@ -12,7 +12,7 @@ npx skills add haedallsd/haedal-skill
 npx skills add haedallsd/haedal-skill --list
 
 # Install specific skills only
-npx skills add haedallsd/haedal-skill --skill haedal-hasui --skill haedal-hawal
+npx skills add haedallsd/haedal-skill --skill haedal-hasui --skill haedal-hawal --skill haedal-vehaedal
 
 # Install globally (all projects)
 npx skills add haedallsd/haedal-skill -g
@@ -27,7 +27,6 @@ npx skills add haedallsd/haedal-skill -a cursor -a claude-code
 |-------|-------------|
 | `haedal-hasui` | haSUI — stake, withdraw, instant withdraw, claim |
 | `haedal-hawal` | haWAL — stake, withdraw, instant withdraw, claim |
-| `haedal-farming` | Farming — deposit, add deposit, harvest, withdraw |
 | `haedal-vehaedal` | VeHaedal — add stake, extend lock, claim rewards, decay control |
 
 ## Supported Agents
