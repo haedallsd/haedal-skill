@@ -1,6 +1,9 @@
 ---
 name: haedal-hawal
-description: Use this skill when the user asks to "stake hawal", "withdraw hawal", "instant withdraw hawal", or "claim hawal rewards". The haWAL module calls /api/v1/hawal/* via curl POST, sending only address, amount (and validator). On HTTP 200 it returns txBytes; on non‑200 it returns msg.
+description: |
+  Use when the user mentions staking WAL, withdrawing hawal, claiming rewards, or operating haWAL on Haedal Protocol (a DeFi/LST protocol on SUI).
+  Trigger phrases: “stake hawal”,"stake hawal", "withdraw hawal", "withdraw wal","instant withdraw hawal","instant withdraw wal","claim hawal rewards","claim wal rewards" .
+  This skill calls https://skillsapi.haedal.xyz/api/v1/hawal/* via curl POST. On HTTP 200 returns txBytes (base64); on non‑200 returns msg.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(curl:*), Bash(jq:*)
 model: opus
 license: MIT
@@ -11,7 +14,9 @@ metadata:
 
 # Haedal haWAL
 
-Call the haWAL HTTP APIs directly with curl, without any custom scripts.
+**Haedal Protocol** is a DeFi ecosystem on the [SUI](https://sui.io) blockchain. **haWAL** is its liquid staking token (LST) for WAL: stake WAL to receive haWAL, earn staking rewards, and optionally choose validators. This skill calls the Haedal Skills API to perform stake, withdraw, instant withdraw, and claim operations via curl — no custom scripts required.
+
+Call the haWAL HTTP APIs directly with curl.
 
 **All numeric parameters are human‑readable amounts**: pass `amount` and similar quantity fields as human‑readable values, without multiplying by decimals. For example, to stake 20 tokens, simply send `"amount":"20"`.
 

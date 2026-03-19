@@ -1,6 +1,9 @@
 ---
 name: haedal-vehaedal
-description: Use this skill when the user asks to "stake haedal", "claim rewards from staked haedal", "extend the haedal lock period", "unlock/redeem haedal", "add to an existing haedal stake", or "start/stop decay". The VeHaedal module calls /api/v1/vehaedal/* via curl POST. Some methods require a vehaedalObj (obtained via get_vehaedal_list). On HTTP 200 it returns txBytes; on non‑200 it returns msg.
+description: |
+  Use when the user mentions staking HAEDAL, locking, extending lock, claiming rewards, decay, or operating VeHaedal on Haedal Protocol (a DeFi ecosystem on SUI).
+  Trigger phrases: "stake haedal", "lock haedal", "extend lock", "claim rewards from haedal", "unlock/redeem haedal", "add to stake", "start decay", "stop decay", "vehaedal".
+  This skill calls https://skillsapi.haedal.xyz/api/v1/vehaedal/* via curl POST. add_stake and claim_rewards* need only signerAddress (+ amount/periods); add_to_existing_stake, extend_existing_lock, start_decay, stop_decay, unstake_and_claim require vehaedalObj — fetch via get_vehaedal_list(address), present the list with current_amount/locked_amount/is_decaying/lock_end_time to the user, then use their chosen objectId. All amounts are human-readable. On HTTP 200 returns txBytes (base64); on non‑200 returns msg.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(curl:*), Bash(jq:*)
 model: opus
 license: MIT
@@ -11,7 +14,9 @@ metadata:
 
 # Haedal VeHaedal
 
-Call the VeHaedal HTTP APIs directly with curl, without any custom scripts.
+**Haedal Protocol** is a DeFi ecosystem on the [SUI](https://sui.io) blockchain. **VeHaedal** is its vote-escrowed governance token: lock HAEDAL for veHaedal to earn rewards and voting power; lock duration and optional decay affect reward rates. This skill calls the Haedal Skills API for add stake, extend lock, claim rewards, decay control, and unstake — no custom scripts required.
+
+Call the VeHaedal HTTP APIs directly with curl.
 
 **All numeric parameters are human‑readable amounts**: pass `amount` and similar quantity fields as human‑readable values, without multiplying by decimals. For example, to stake 20 tokens, simply send `"amount":"20"`.
 
