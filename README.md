@@ -8,6 +8,9 @@ Haedal Protocol agent skills for **any AI coding agent** — interact with haSUI
 # Install all Haedal skills (any agent)
 npx skills add haedallsd/haedal-skill
 
+# OpenClaw users: use this command in agent workspace (omit -g)
+npx skills add haedallsd/haedal-skill -a openclaw
+
 # List available skills
 npx skills add haedallsd/haedal-skill --list
 
@@ -20,8 +23,7 @@ npx skills add haedallsd/haedal-skill -g
 # Install to specific agents
 npx skills add haedallsd/haedal-skill -a cursor -a claude-code
 
-# Install to OpenClaw workspace (recommended; omit -g to avoid ~/.openclaw/skills/)
-npx skills add haedallsd/haedal-skill -a openclaw
+
 ```
 
 ## Available Skills
