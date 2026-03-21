@@ -40,7 +40,7 @@ Skills are installed via the open [Agent Skills CLI](https://github.com/vercel-l
 - **Claude Code** — `.claude/skills/`
 - **Codex** — `.codex/skills/`
 - **OpenCode** — `.agents/skills/`
-- **OpenClaw** — `.openclaw/workspace/skills/` (recommend workspace install; avoid shared `~/.openclaw/skills/`)
+- **OpenClaw** — `./skills/` (recommend workspace install)
 - **GitHub Copilot** — `.agents/skills/`
 - And many more — the CLI auto-detects your installed agents.
 
