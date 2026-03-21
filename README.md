@@ -19,6 +19,9 @@ npx skills add haedallsd/haedal-skill -g
 
 # Install to specific agents
 npx skills add haedallsd/haedal-skill -a cursor -a claude-code
+
+# Install to OpenClaw workspace (recommended; omit -g to avoid ~/.openclaw/skills/)
+npx skills add haedallsd/haedal-skill -a openclaw
 ```
 
 ## Available Skills
@@ -37,7 +40,7 @@ Skills are installed via the open [Agent Skills CLI](https://github.com/vercel-l
 - **Claude Code** — `.claude/skills/`
 - **Codex** — `.codex/skills/`
 - **OpenCode** — `.agents/skills/`
-- **OpenClaw** — `~/.openclaw/skills/`
+- **OpenClaw** — `.openclaw/workspace/skills/` (recommend workspace install; avoid shared `~/.openclaw/skills/`)
 - **GitHub Copilot** — `.agents/skills/`
 - And many more — the CLI auto-detects your installed agents.
 
