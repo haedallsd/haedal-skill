@@ -6,10 +6,15 @@ Haedal Protocol agent skills for **any AI coding agent** — interact with haSUI
 
 ```bash
 # Install all Haedal skills (any agent)
-npx skills add haedallsd/haedal-skill
+npx skills add haedallsd/haedal-skill 
 
 # OpenClaw users: use this command in agent workspace (omit -g)
 npx skills add haedallsd/haedal-skill -a openclaw --yes
+
+# Install to specific agents
+npx skills add haedallsd/haedal-skill -a cursor --yes
+
+npx skills add haedallsd/haedal-skill -a claude-code --yes
 
 # List available skills
 npx skills add haedallsd/haedal-skill --list
@@ -19,9 +24,6 @@ npx skills add haedallsd/haedal-skill --skill haedal-hasui --skill haedal-hawal 
 
 # Install globally (all projects)
 npx skills add haedallsd/haedal-skill -g
-
-# Install to specific agents
-npx skills add haedallsd/haedal-skill -a cursor -a claude-code
 
 
 ```
