@@ -1,8 +1,8 @@
 {
   "name": "haedal-skills",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
-  "description": "Haedal Protocol agent skills — haSUI, haWAL, VeHaedal",
+  "description": "Haedal Protocol agent skills \u2014 haSUI, haWAL, VeHaedal",
   "keywords": [
     "haedal",
     "sui",

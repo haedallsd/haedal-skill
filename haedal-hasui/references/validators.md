@@ -1,5 +1,7 @@
 # haSUI Validator Reference (Index 1–5)
 
+This is a static name/address reference. Check current Sui active validators before staking; disclose that an inactive address falls back to protocol selection. `0x0` explicitly requests protocol selection.
+
 When staking hasui, setting `validator` to `0x0` means using the default validator. Alternatively, you can select one from the table below and pass the corresponding `node_id`. The user can specify either the **index (1–5)** or the **validator name**, which you then map to the `node_id` when sending the request.
 
 | Index | name | node_id |
