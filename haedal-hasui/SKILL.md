@@ -5,11 +5,10 @@ description: |
   Trigger phrases: "haedal","stake sui"，"stake hasui", "withdraw hasui", "withdraw sui"，"instant withdraw hasui", "instant withdraw sui", "claim hasui rewards","claim sui rewards".
   This skill calls https://skillsapi.haedal.xyz/api/v1/hasui/* via curl POST. On HTTP 200 returns txBytes (base64); on non‑200 returns msg.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(curl:*), Bash(jq:*)
-model: opus
 license: MIT
 metadata:
   author: haedal
-  version: '0.1.0'
+  version: '0.1.2'
 ---
 
 # Haedal haSUI
@@ -18,7 +17,13 @@ metadata:
 
 Call the haSUI HTTP APIs directly with curl.
 
-**All numeric parameters are human‑readable amounts**: pass `amount` and other quantity fields as human‑readable values, without multiplying by decimals. For example, to stake 20 tokens, simply send `"amount":"20"`.
+**API request `amount` is a human-readable decimal string**: send `"amount":"20"` for 20 tokens, without multiplying by decimals. `stake` spends SUI; `withdraw` and `withdraw_instant` spend haSUI. Object response amounts are raw integer units; epoch numbers and millisecond timestamps are not token amounts.
+
+## Contract rules and transaction handoff
+
+Read [contract rules](references/contract-rules.md) before preparing a transaction. They cover minimum amounts, fees, ticket maturity. Use current chain state for balances, fees, pauses and eligibility.
+
+HTTP 200 with `txBytes` means an unsigned transaction was prepared. Before handing it to a signing wallet, decode and check the sender, network, Move targets, input asset/amount, recipient and expected asset changes, then run an unsigned checked simulation. If the required tooling or state is unavailable, report that verification is incomplete and do not describe the transaction as ready to sign. Signing and broadcasting require the user's authorization.
 
 ## Validator when staking
 
@@ -27,12 +32,13 @@ Only the **stake** method requires a `validator` (validator node `node_id`):
 - Passing **`0x0`** means "use the default validator".
 - If the user **does not provide a validator**: show a reference list of validators and let the user choose. The user can respond with **index 1–5** or the **validator name**. Map this to the corresponding `node_id` in the table and include it in the request.
 - The reference list is defined in [`references/validators.md`](references/validators.md) (mapping between name and node_id, indexed 1–5).
+- Treat this as a static reference, not proof of current validator availability. Check the selected address against current Sui active validators. The contract uses protocol selection for `0x0` or an inactive address; disclose a fallback instead of claiming the requested validator was used.
 
 Typical flow: the user says "stake hasui" without specifying a validator → present 5 reference validators (index + name) → the user replies with "1" or "Ankr", etc. → use the corresponding `node_id` to call stake.
 
-## Claiming rewards and NFTObj
+## Claiming delayed redemption and NFTObj
 
-The **claim** endpoint requires **address** and **NFTObj** (the NFT object ID that holds the rewards). When the user says "claim hasui rewards":
+The **claim** endpoint requires **address** and **NFTObj**, the `staking::UnstakeTicket` ID created by a delayed withdrawal. It redeems the ticket's SUI amount and consumes the ticket; it is not a separate staking-reward claim. If the user says "claim hasui rewards", clarify whether they mean an existing delayed redemption before using this flow.
 
 1. **Ask the user** whether they want help finding the object id (if the user already knows the NFTObj, you can send it directly).
 2. **If discovery is needed**: call **get_unstake_tickets_list** with the user `address`. On HTTP 200 the response body is:
@@ -55,11 +61,11 @@ The **claim** endpoint requires **address** and **NFTObj** (the NFT object ID th
      ]
    }
    ```
-3. **Present the list to the user** in a readable format — show key fields such as `objectId`, `st_amount`, `sui_amount`, `claim_epoch`, `claim_timestamp_ms` for each entry.
+3. **Validate and present tickets**: check the type and current ownership, display raw amounts alongside decimal-formatted amounts, and show `claim_epoch` and `claim_timestamp_ms` with timezone. A listed ticket is not necessarily mature: current Sui epoch must reach `claim_epoch` AND its epoch-start timestamp must reach `claim_timestamp_ms`. Also check claim pause state; do not build a knowingly premature claim.
 4. **If there are multiple entries in the list**: let the user choose which one to claim (or take the first entry if only one exists) and use that entry's `objectId` as NFTObj.
 5. **Then call claim**: `POST /api/v1/hasui/claim` with body `{"address":"0x...","NFTObj":"<objectId from previous step>"}`.
 
-Flow summary: the user says "claim hasui rewards" → ask whether to discover the object id → if yes, call get_unstake_tickets_list(address) → present the list with key details → user selects one → take the chosen `objectId` as NFTObj → call claim(address, NFTObj).
+Flow summary: delayed redemption requested → obtain the ticket ID → validate type, ownership and maturity → user selects a ticket if needed → call claim(address, NFTObj). Apply these checks even when the user supplies NFTObj directly. An empty list means there is no ticket to claim.
 
 ## Base URL
 
@@ -69,10 +75,10 @@ Flow summary: the user says "claim hasui rewards" → ask whether to discover th
 
 | Method                   | Required fields           | Notes |
 |--------------------------|---------------------------|-------|
-| stake                    | address, amount, validator | No object field |
-| withdraw                 | address, amount           | No object field |
-| withdraw_instant         | address, amount           | No object field |
-| claim                    | address, **NFTObj**       | Requires NFT object ID, see the "Claiming rewards" flow above |
+| stake                    | address, amount, validator | Spend SUI; minimum 1 SUI |
+| withdraw                 | address, amount           | Spend haSUI; create delayed-redemption ticket |
+| withdraw_instant         | address, amount           | Spend haSUI; receive SUI after configured service fee |
+| claim                    | address, **NFTObj**       | Redeem a mature UnstakeTicket for SUI |
 | get_unstake_tickets_list | address                   | Query the UnstakeTicket list for this address to obtain NFTObj |
 
 ## curl examples
@@ -109,7 +115,7 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/hasui/w
   -d '{"address":"0xYOUR_ADDRESS","amount":"100"}'
 ```
 
-**get_unstake_tickets_list** (query the UnstakeTicket list that can be claimed, used to obtain NFTObj)
+**get_unstake_tickets_list** (discover UnstakeTickets; independently check maturity before claiming)
 
 ```bash
 curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/hasui/get_unstake_tickets_list" \
@@ -129,31 +135,27 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/hasui/c
 
 ## Response
 
-- **stake / withdraw / withdraw_instant / claim**: on HTTP 200, the body is `{"txBytes":"<base64>"}`; use `jq -r '.txBytes'` to extract it. On non‑200, use `jq -r '.msg'` to return the error reason to the user.
+- **stake / withdraw / withdraw_instant / claim**: on HTTP 200, the body is `{"txBytes":"<base64>"}`; use `jq -r '.txBytes'` to extract it. On non-200, parse `.msg` if the body is valid JSON; otherwise return the plain-text body with the HTTP status.
 - **get_unstake_tickets_list**: on HTTP 200, the body is `{"list":[{"objectId","type","version","fields":{...}}, ...]}`; use `jq -r '.list'` to obtain the list. Each entry's `fields` contains `st_amount`, `sui_amount`, `claim_epoch`, `claim_timestamp_ms`, `unstake_timestamp_ms`. Take the desired entry's `objectId` as the NFTObj for claim.
 
 ## MoveAbort error codes
 
-When a dry-run or build call fails with `MoveAbort(..., <code>)`, use the following mapping:
+Use the following mapping only for errors from this package's `staking` module, after checking package, module and function. Dependency/module errors may reuse the same numbers.
 
 | Code | Constant Name | Description |
 |------|---------------|-------------|
 | 1 | `EDataNotMatchProgram` | Data does not match the program |
 | 2 | `EStakedSuiRewardsNotMatched` | Staked SUI rewards do not match |
 | 3 | `EInvalidStakeParas` | Invalid staking parameters |
-| 4 | `EStakeNotEnoughSui` | Not enough SUI to stake |
+| 4 | `EStakeNotEnoughSui` | Input is below the 1 SUI staking minimum |
 | 5 | `EStakeNoStsuiMint` | No stSUI minted during staking |
 | 6 | `EUnstakeNormalTicketLocking` | Normal unstake ticket is still in locking period |
 | 7 | `EUnstakeNotEnoughSui` | Not enough SUI to fulfill unstake |
-| 8 | `EUnstakeExceedMaxSuiAmount` | Unstake amount exceeds the max SUI amount |
-| 9 | `EUnstakeInstantNoServiceFee` | Instant unstake requires a service fee (fee not set) |
-| 10 | `(EUnstakeNotEnoughStakedSui)` | Commented out: not enough staked SUI for unstake |
+| 8 | `EUnstakeExceedMaxSuiAmount` | Gross SUI equivalent is below 1 SUI or exceeds total protocol SUI |
 | 11 | `EUnstakeNotZeroStSui` | Unstake stSUI amount must not be zero |
 | 12 | `EStakePause` | Staking is paused |
 | 13 | `EUnstakePause` | Unstaking is paused |
-| 14 | `(EReservedForClaim)` | Commented out: reserved for claim |
-| 15 | `(ENoMinStakingThreshhold)` | Commented out: no minimum staking threshold met |
-| 16 | `EUnstakeNeedAmountIsNotZero` | Unstake `need_amount` must not be zero |
+| 16 | `EUnstakeNeedAmountIsNotZero` | Unable to obtain the full SUI redemption amount |
 | 17 | `EClaimPause` | Claiming is paused |
 | 18 | `EValidatorCountNotMatch` | Validator count does not match |
 | 19 | `EValidatorNotFound` | Validator not found |

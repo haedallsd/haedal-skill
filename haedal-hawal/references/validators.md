@@ -1,5 +1,7 @@
 # haWAL Validator Reference (Index 1–10)
 
+This is a static name/ID reference. Check current Walrus state before using a nonzero ID; an invalid selection may fail. `0x0` requests automatic validator selection.
+
 When staking hawal, setting `validator` to `0x0` means using the default validator. Alternatively, you can select one from the table below and pass the corresponding `node_id`. The user can specify either the **index (1–10)** or the **validator name**, which you then map to the `node_id` when sending the request.
 
 | Index | name | node_id |

@@ -3,13 +3,12 @@ name: haedal-vehaedal
 description: |
   Use when the user mentions staking HAEDAL, locking, extending lock, claiming rewards, decay, or operating VeHaedal on Haedal Protocol (a DeFi ecosystem on SUI).
   Trigger phrases: "stake haedal", "lock haedal", "extend lock", "claim rewards from haedal", "unlock/redeem haedal", "add to stake", "start decay", "stop decay", "vehaedal".
-  This skill calls https://skillsapi.haedal.xyz/api/v1/vehaedal/* via curl POST. add_stake and claim_rewards* need only signerAddress (+ amount/periods); add_to_existing_stake, extend_existing_lock, start_decay, stop_decay, unstake_and_claim require vehaedalObj — fetch via get_vehaedal_list(address), present the list with current_amount/locked_amount/is_decaying/lock_end_time to the user, then use their chosen objectId. All amounts are human-readable. On HTTP 200 returns txBytes (base64); on non‑200 returns msg.
+  This skill prepares unsigned transactions via https://skillsapi.haedal.xyz/api/v1/vehaedal/* using curl POST. It distinguishes lock/decay operations, principal redemption, and separate reward distributions. Discover existing positions with get_vehaedal_list when needed; check current ownership and operation eligibility before building.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(curl:*), Bash(jq:*)
-model: opus
 license: MIT
 metadata:
   author: haedal
-  version: '0.1.0'
+  version: '0.1.2'
 ---
 
 # Haedal VeHaedal
@@ -18,7 +17,15 @@ metadata:
 
 Call the VeHaedal HTTP APIs directly with curl.
 
-**All numeric parameters are human‑readable amounts**: pass `amount` and similar quantity fields as human‑readable values, without multiplying by decimals. For example, to stake 20 tokens, simply send `"amount":"20"`.
+**API request `amount` is a human-readable decimal string**: send `"amount":"20"` for 20 HAEDAL, without multiplying by decimals. Object response amounts are raw integer units. `lockWeeks` and `additionalWeeks` are integer week counts; `periods` contains reward-distribution IDs, not token amounts or Sui/Walrus epochs.
+
+## Contract rules and transaction handoff
+
+Read [contract rules](references/contract-rules.md) before preparing a transaction. They cover lock modes, operation eligibility, principal redemption and separate reward distributions. Use current chain state for balances, fees, pauses and eligibility.
+
+Choose `isDecaying` from the user's intended lock behavior. `false` freezes the remaining duration: it does not unlock automatically as wall-clock time passes. `start_decay` starts a new countdown from the current chain time using the saved remaining weeks. Explain this consequence before preparing a non-decaying position; do not silently choose a mode.
+
+HTTP 200 with `txBytes` means an unsigned transaction was prepared. Before handing it to a signing wallet, decode and check the sender, network, Move targets, position, input asset/amount, recipient and expected asset changes, then run an unsigned checked simulation. If tooling or state is unavailable, report incomplete verification and do not describe the transaction as ready to sign. Signing and broadcasting require the user's authorization.
 
 ## Querying veHaedal objects (get_vehaedal_list)
 
@@ -47,10 +54,12 @@ Several methods (add_to_existing_stake, extend_existing_lock, start_decay, stop_
      ]
    }
    ```
-3. **Present the list to the user** in a readable format — show key fields such as `objectId`, `current_amount`, `locked_amount`, `is_decaying`, `original_lock_weeks`, `lock_end_time` for each entry.
+3. **Validate and present positions**: check the full `VeHAEDAL<HAEDAL>` type, current object ownership AND the stored `owner` against the signer. Show decimal-formatted locked principal, mode and effective remaining weeks. Label raw `current_amount` as a stored field, not a live balance; use `staking::get_current_veheadal` for the time-dependent value. Show `lock_end_time` with timezone, but do not treat it as an unlock date for a non-decaying position.
 4. **Let the user choose** which veHaedal object to operate on (or take the first entry if only one exists). Use the selected `objectId` as the `vehaedalObj` parameter for the subsequent call.
 
 Flow summary: user triggers a method that requires `vehaedalObj` → ask if they have the object ID → if not, call get_vehaedal_list(address) → present the list → user selects one → take that `objectId` as `vehaedalObj` → call the target method.
+
+Apply the same ownership and operation-specific eligibility checks when the user supplies an object ID directly. An empty list means no existing position was found. `unstake_and_claim` consumes the position and returns its locked HAEDAL principal; distribution rewards require a separate claim.
 
 ## Base URL
 
@@ -60,24 +69,26 @@ Flow summary: user triggers a method that requires `vehaedalObj` → ask if they
 
 | Method                   | Required fields                                | Notes |
 |--------------------------|------------------------------------------------|-------|
-| add_stake                | signerAddress, amount, lockWeeks, isDecaying   | Creates a new veHaedal position |
+| add_stake                | signerAddress, amount, lockWeeks, isDecaying   | New position; 1–52 weeks; positive amount meeting pool minimum |
 | get_vehaedal_list        | address                                        | Query veHaedal objects owned by this address; returns `list` of objects |
 | add_to_existing_stake    | signerAddress, **vehaedalObj**, amount          | Requires an existing veHaedal object ID |
 | extend_existing_lock     | signerAddress, **vehaedalObj**, additionalWeeks | Requires an existing veHaedal object ID |
 | start_decay              | signerAddress, **vehaedalObj**                  | Requires an existing veHaedal object ID |
 | stop_decay               | signerAddress, **vehaedalObj**                  | Requires an existing veHaedal object ID |
-| unstake_and_claim        | signerAddress, **vehaedalObj**                  | Requires an existing veHaedal object ID |
-| claim_rewards_v2         | signerAddress, periods                         | No object field needed |
-| claim_rewards_v2_epoch_1 | signerAddress                                  | No object field needed |
+| unstake_and_claim        | signerAddress, **vehaedalObj**                  | Decaying position eligible for redemption; returns principal |
+| claim_rewards_v2         | signerAddress, periods                         | Separate distribution claim; select eligible periods and verify reward coin |
+| claim_rewards_v2_epoch_1 | signerAddress                                  | Claim haSUI rewards for fixed period 1 |
 
 ## curl examples
 
 **add_stake**
 
+This example uses decay mode, so the lock counts down. Use `false` only when the user intends to freeze the countdown as described above.
+
 ```bash
 curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/vehaedal/add_stake" \
   -H "Content-Type: application/json" \
-  -d '{"signerAddress":"0xYOUR_ADDRESS","amount":"20","lockWeeks":4,"isDecaying":false}'
+  -d '{"signerAddress":"0xYOUR_ADDRESS","amount":"20","lockWeeks":4,"isDecaying":true}'
 ```
 
 **get_vehaedal_list** (query veHaedal objects owned by an address, used to obtain vehaedalObj)
@@ -130,6 +141,8 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/vehaeda
 
 **claim_rewards_v2**
 
+Each period ID is a decimal string in the u32 range (0..4294967295). The period IDs below illustrate the request format only. Obtain eligible unclaimed periods for the signer, check reward coin type and pause state, and replace this array; do not assume periods 1 and 2 are claimable.
+
 ```bash
 curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/vehaedal/claim_rewards_v2" \
   -H "Content-Type: application/json" \
@@ -137,6 +150,8 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/vehaeda
 ```
 
 **claim_rewards_v2_epoch_1**
+
+This route claims haSUI rewards for fixed period 1 using the configured Rewards distributor. Select an eligible account and verify the returned transaction.
 
 ```bash
 curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/vehaedal/claim_rewards_v2_epoch_1" \
@@ -146,22 +161,22 @@ curl -s -w "\n%{http_code}" -X POST "https://skillsapi.haedal.xyz/api/v1/vehaeda
 
 ## Response
 
-- **add_stake / add_to_existing_stake / extend_existing_lock / start_decay / stop_decay / unstake_and_claim / claim_rewards_v2 / claim_rewards_v2_epoch_1**: on HTTP 200, the body is `{"txBytes":"<base64>"}`; use `jq -r '.txBytes'` to extract it. On non‑200, use `jq -r '.msg'` to extract the error reason and return it to the user.
+- **add_stake / add_to_existing_stake / extend_existing_lock / start_decay / stop_decay / unstake_and_claim / claim_rewards_v2 / claim_rewards_v2_epoch_1**: on HTTP 200, the body is `{"txBytes":"<base64>"}`; use `jq -r '.txBytes'` to extract it. On non-200, parse `.msg` if the body is valid JSON; otherwise return the plain-text body with the HTTP status.
 - **get_vehaedal_list**: on HTTP 200, the body is `{"list":[{"objectId":"...","fields":{...}}, ...]}`. Use `jq -r '.list'` to obtain the list, then take the desired entry's `objectId` as the `vehaedalObj` for subsequent calls.
 
 ## MoveAbort error codes
 
-When a dry-run or build call fails with `MoveAbort(..., <code>)`, use the following mapping:
+Use the following mapping only for this package's `staking` module, after checking package, module and function. Reward-distribution and `staking_pool` errors have different mappings; see the contract rules. In particular, rewards code 9 means `EPauseClaim`, not `ELockExpired`.
 
 | Code | Constant Name | Description |
 |------|---------------|-------------|
 | 0 | `N/A` | `start_decay`: token is already in decaying state. `stop_decay` / `unstake_and_claim`: token is not in decaying state. |
-| 1 | `EInvalidLockDuration` | Invalid lock duration, must be between 1 and 52 weeks |
+| 1 | `EInvalidLockDuration` | Invalid duration, insufficient full weeks for add/stop-decay, or extension exceeds 52 remaining full weeks |
 | 2 | `EInvalidOwner` | Caller is not the owner of the veHAEDAL token |
 | 3 | `ENoTokensToUnstake` | No tokens available to unstake (`unstaked amount` is 0) |
 | 4 | `EInvalidAmount` | Invalid amount, must be greater than 0 |
-| 5 | `ELockNotExpired` | Lock period has not expired yet |
+| 5 | `ELockNotExpired` | Redemption is earlier than the UTC day containing lock_end_time |
 | 6 | `ELockShouldBeExpired` | Lock period should be expired |
 | 7 | `EMinStakeAmount` | Stake amount is below the minimum required |
-| 8 | `EDataNotMatchProgram` | Pool version does not match the current program version |
+| 8 | `EDataNotMatchProgram` | Pool version exceeds the program version; check is pool.version <= current_version |
 | 9 | `ELockExpired` | Lock period has already expired |

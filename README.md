@@ -4,8 +4,8 @@ This is a skill pack for AI agents. Its purpose is to help prepare transactions 
 
 It currently includes 3 skills:
 
-- `haedal-hasui`: handles haSUI actions such as `stake`, `withdraw`, `instant withdraw`, and `claim`
-- `haedal-hawal`: handles haWAL actions such as `stake`, `withdraw`, `instant withdraw`, and `claim`
+- `haedal-hasui`: stake SUI, redeem haSUI instantly or through a delayed-withdrawal ticket, and claim mature tickets
+- `haedal-hawal`: stake WAL, redeem haWAL instantly or through a delayed-withdrawal ticket, and claim mature tickets
 - `haedal-vehaedal`: handles veHAEDAL actions such as locking, adding to a position, extending lock time, claiming rewards, and decay control
 
 ## The Most Important Thing First
@@ -27,6 +27,10 @@ You can think of the flow like this:
 
 Without a wallet skill for signing, the agent can only help prepare the transaction, but cannot actually complete it.
 
+Before signing, inspect the generated transaction and run an unsigned checked simulation. An HTTP 200 response with `txBytes` does not establish execution success. The skills do not grant signing or broadcast authorization.
+
+Each skill links its operation rules under `references/contract-rules.md`. The API prepares unsigned transaction bytes; use current chain state and simulation results when reviewing a transaction.
+
 ## Who This Is For
 
 This project is for you if you want to use natural language to ask an agent to do things like:
@@ -34,7 +38,8 @@ This project is for you if you want to use natural language to ask an agent to d
 - "Stake 100 SUI into haSUI"
 - "Redeem 50 haWAL"
 - "Lock HAEDAL for 52 weeks"
-- "Claim my Haedal rewards"
+- "Claim my mature haSUI withdrawal ticket"
+- "Claim my veHAEDAL distribution rewards"
 
 ## How To Use
 
@@ -111,7 +116,7 @@ Best for:
 
 - staking SUI into haSUI
 - withdrawing or instant withdrawing
-- claiming related rewards
+- claiming SUI from a mature delayed-withdrawal ticket
 
 ### `haedal-hawal`
 
@@ -119,7 +124,7 @@ Best for:
 
 - staking WAL into haWAL
 - withdrawing or instant withdrawing
-- claiming related rewards
+- claiming WAL from a mature delayed-withdrawal ticket
 
 ### `haedal-vehaedal`
 
@@ -130,7 +135,11 @@ Best for:
 - extending lock duration
 - starting or stopping decay
 - claiming rewards
-- unstaking and claiming after expiry
+- redeeming locked HAEDAL principal when eligible in decay mode
+
+For haSUI and haWAL, ticket `claim` completes an earlier delayed redemption; it is not a separate yield claim. Instant redemptions charge the configured service fee and depend on accessible assets. Withdrawal `amount` is denominated in haSUI or haWAL; staking `amount` is SUI or WAL.
+
+For veHAEDAL, `isDecaying:false` freezes the countdown. Passing time alone does not unlock that position; `start_decay` begins a new countdown from the saved remaining weeks. Principal redemption and reward-distribution claims are separate operations. Each skill documents its exact eligibility conditions.
 
 ## FAQ
 
