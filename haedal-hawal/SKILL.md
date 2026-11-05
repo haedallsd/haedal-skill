@@ -61,7 +61,7 @@ The **claim** endpoint requires **address** and **NFTObj**, the `walstaking::Uns
      ]
    }
    ```
-3. **Validate and present tickets**: check the type and current ownership, display raw amounts alongside decimal-formatted amounts, and show `claim_epoch` and `claim_timestamp_ms` with timezone. A listed ticket is not necessarily mature: current Walrus `System.epoch` must reach `claim_epoch` AND Clock's timestamp must reach `claim_timestamp_ms`. Also check claim pause state; do not substitute Sui epoch or build a knowingly premature claim.
+3. **Validate and present tickets**: check the type and current ownership, display raw amounts alongside decimal-formatted amounts, and show `claim_epoch` and `claim_timestamp_ms` with timezone. A listed ticket is not necessarily mature: the current Walrus epoch must reach `claim_epoch` AND Clock's timestamp must reach `claim_timestamp_ms`. Read the epoch from current Walrus state; its business `version` is not an epoch. Also check claim pause state; do not substitute Sui epoch or build a knowingly premature claim.
 4. **If there are multiple entries in the list**: let the user choose which one to claim (or take the first entry if only one exists) and use that entry's `objectId` as NFTObj.
 5. **Then call claim**: `POST /api/v1/hawal/claim` with body `{"address":"0x...","NFTObj":"<objectId from previous step>"}`.
 
